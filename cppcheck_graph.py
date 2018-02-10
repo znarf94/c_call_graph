@@ -1,10 +1,11 @@
 import os
+import re
 from collections import defaultdict
 from os import walk
 from pprint import pprint
 from subprocess import call, Popen, PIPE
 
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 from cppcheckdata import parsedump, Token
 
@@ -26,10 +27,10 @@ def main():
 
                 dump_file = file + '.dump'
                 d = parsedump(dump_file)
-                # os.remove(dump_file)
+                os.remove(dump_file)
 
                 try:
-                    functions = d.configurations[0].functions
+                    # functions = d.configurations[0].functions
                     scopes = d.configurations[0].scopes
                     tokens = d.configurations[0].tokenlist  # type: List[Token]
 
@@ -56,18 +57,39 @@ def main():
     pprint(func_decl_file, indent=2)
     pprint(files_deps, indent=2)
 
-    dot_graph(function_calls, 'funcs')
-    dot_graph(files_deps, 'files')
+    dot_graph('calls', function_calls)
+    dot_graph('files', files_deps)
+    dot_graph('full', function_calls, reverse_dict(func_decl_file))
 
 
-def dot_graph(d: defaultdict(set), name: str) -> None:
+def reverse_dict(d):
+    out = defaultdict(set)
+
+    for k, v in d.items():
+        out[v].add(k)
+
+    return dict(out)
+
+
+def dot_graph(name: str,
+              d: Dict[str, str],
+              clusters: Optional[Dict[str, str]] = None) -> None:
     dot = '''digraph d {
     rankdir = UD;
-    node [shape = rectangle];
+    node [shape = rectangle; style = rounded];
     '''
 
-    for a, b in d.items():
-        dot += '"{}" -> {{"{}"}};\n'.format(a, '" "'.join(b))
+    if clusters is not None:
+        r = re.compile('[~\W]')
+        for cluster, nodes in clusters.items():
+            dot += 'subgraph cluster_{} {{\n'.format(r.sub('_', cluster))
+            dot += 'label = "{}"\n'.format(cluster)
+            for node in sorted(nodes):
+                dot += '"{}";\n'.format(node)
+            dot += '}\n\n'
+
+    for caller, callees in d.items():
+        dot += '"{}" -> {{"{}"}};\n'.format(caller, '" "'.join(sorted(callees)))
 
     dot += '}'
 
