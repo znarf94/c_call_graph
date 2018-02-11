@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 from collections import defaultdict
 from os import walk
 from pprint import pprint
@@ -13,6 +14,8 @@ CPP_CHECK = '/home/znarf/Téléchargements/cppcheck-1.82/cppcheck'
 
 
 def main():
+    print(sys.argv)
+
     function_calls = defaultdict(set)
     files_deps = defaultdict(set)
     func_decl_file = {}      # type: Dict[str, str]
@@ -23,7 +26,7 @@ def main():
 
             if file[-2:] == '.c':
                 print(file)
-                call([CPP_CHECK, '--dump', file])
+                call([CPP_CHECK, '--dump', file] + sys.argv[1:])
 
                 dump_file = file + '.dump'
                 d = parsedump(dump_file)
